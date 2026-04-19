@@ -28,19 +28,23 @@ export async function initAvatar(container) {
 
   clock = new THREE.Clock();
   scene = new THREE.Scene();
+  scene.background = null; // transparent
 
-  // Camera: bust shot
-  camera = new THREE.PerspectiveCamera(25, container.clientWidth / container.clientHeight, 0.1, 20);
-  camera.position.set(0, 1.35, 1.8);
-  camera.lookAt(0, 1.35, 0);
+  // Ensure container has dimensions
+  const w = container.clientWidth || 220;
+  const h = container.clientHeight || 280;
+
+  // Camera — will be repositioned after model loads
+  camera = new THREE.PerspectiveCamera(30, w / h, 0.01, 100);
+  camera.position.set(0, 1.4, 0.8);
+  camera.lookAt(0, 1.4, 0);
 
   // Renderer with transparent background
-  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-  renderer.setSize(container.clientWidth, container.clientHeight);
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, premultipliedAlpha: false });
+  renderer.setClearColor(0x000000, 0);
+  renderer.setSize(w, h);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.2;
   container.appendChild(renderer.domElement);
 
   // Lighting: bright enough to see the model clearly
@@ -80,19 +84,29 @@ export async function initAvatar(container) {
 
     scene.add(vrm.scene);
 
-    // Auto-frame camera on the model's head/shoulders
+    // Force a scene update so bounding box is computed correctly
+    vrm.scene.updateMatrixWorld(true);
+
+    // Auto-frame camera on the model
     const box = new THREE.Box3().setFromObject(vrm.scene);
     const size = box.getSize(new THREE.Vector3());
     const center = box.getCenter(new THREE.Vector3());
 
-    // Position camera for bust shot (head + shoulders)
-    const headY = center.y + size.y * 0.3; // Focus on upper third
-    camera.position.set(0, headY, size.y * 0.7);
+    console.log('[avatar] Model bounds — center:', center.x.toFixed(2), center.y.toFixed(2), center.z.toFixed(2),
+      '| size:', size.x.toFixed(2), size.y.toFixed(2), size.z.toFixed(2));
+
+    // Frame on upper body (head + shoulders)
+    const headY = center.y + size.y * 0.25;
+    const dist = Math.max(size.y * 0.5, 0.8);
+    camera.position.set(0, headY, dist);
     camera.lookAt(0, headY, 0);
-    camera.fov = 30;
+    camera.fov = 35;
+    camera.near = 0.01;
+    camera.far = dist * 10;
     camera.updateProjectionMatrix();
 
-    console.log('[avatar] VRM loaded — size:', size, 'center:', center);
+    console.log('[avatar] Camera at:', camera.position.x.toFixed(2), camera.position.y.toFixed(2), camera.position.z.toFixed(2),
+      '| looking at headY:', headY.toFixed(2));
 
     // Setup animations if available
     if (gltf.animations && gltf.animations.length > 0) {
@@ -101,11 +115,14 @@ export async function initAvatar(container) {
       mixer.clipAction(clip).play();
     }
 
+    // Do an initial render to confirm visibility
+    renderer.render(scene, camera);
+    console.log('[avatar] Initial render done — canvas size:', renderer.domElement.width, 'x', renderer.domElement.height);
+
     isInitialized = true;
     animate();
-    console.log('[avatar] VRM rendering started');
   } catch (err) {
-    console.warn('[avatar] VRM load failed, using fallback:', err);
+    console.error('[avatar] VRM load failed:', err);
     createFallbackAvatar(container);
   }
 }
