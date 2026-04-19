@@ -1670,6 +1670,8 @@ function switchPanel(name, el) {
   if (name === 'log') loadActivity();
   if (name === 'soul') loadSoul();
   if (name === 'analytics') loadAnalytics();
+  // Init avatar when chat panel first becomes visible
+  if (name === 'chat') initAvatarIfNeeded();
 }
 
 /* ── SSE connection ───────────────────────────────────────── */
@@ -3236,22 +3238,35 @@ async function playNextSentence() {
   playNextSentence();
 }
 
-// Init avatar (lazy-load three.js only when visible)
-async function initAvatarSystem() {
+// Init avatar only when chat panel is visible (container needs real dimensions)
+let avatarInitDone = false;
+async function initAvatarIfNeeded() {
+  if (avatarInitDone) {
+    // Already initialized — just resize in case panel dimensions changed
+    if (avatarModule && avatarModule.resize) {
+      const c = document.getElementById('avatar-canvas');
+      if (c) avatarModule.resize(c.clientWidth, c.clientHeight);
+    }
+    return;
+  }
+  avatarInitDone = true;
   try {
     avatarModule = await import('/avatar.js');
     const container = document.getElementById('avatar-canvas');
-    await avatarModule.initAvatar(container);
-    console.log('[voice+avatar] system ready');
+    if (container && container.clientWidth > 0) {
+      await avatarModule.initAvatar(container);
+      console.log('[voice+avatar] system ready');
+    } else {
+      console.warn('[avatar] Container has zero dimensions, retrying in 500ms');
+      setTimeout(async () => {
+        const c = document.getElementById('avatar-canvas');
+        if (c && c.clientWidth > 0) await avatarModule.initAvatar(c);
+      }, 500);
+    }
   } catch (err) {
-    console.warn('[avatar] Failed to init 3D avatar, fallback active:', err);
+    console.warn('[avatar] Failed to init:', err);
   }
 }
-
-// Auto-init on page load
-window.addEventListener('DOMContentLoaded', () => {
-  setTimeout(initAvatarSystem, 1000); // delay to not block initial render
-});
 </script>
 </body>
 </html>
