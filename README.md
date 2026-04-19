@@ -173,6 +173,20 @@ public/
 | Scanner finds nothing | Check your M365 inbox. Scanner looks at last 24h. If inbox is empty, signals will be empty. |
 | Agent init failed (non-fatal) | One agent failing doesn't crash the server. Check logs for which agent. |
 
+## Chamber Integration
+
+Lucy's features are also available as extensions for [Chamber](https://github.com/ianphil/chamber) (Electron desktop app):
+
+| PR | Feature | Status |
+|----|---------|--------|
+| [#100](https://github.com/ianphil/chamber/pull/100) | Scanner Extension (M365 signal monitoring) | Open |
+| [#101](https://github.com/ianphil/chamber/pull/101) | Memory Decay (3-tier temporal memory) | Open |
+| [#102](https://github.com/ianphil/chamber/pull/102) | Model Council (parallel multi-LLM) | Open |
+| [#103](https://github.com/ianphil/chamber/pull/103) | Signal Feed + Dig Deep | Open |
+| [#104](https://github.com/ianphil/chamber/pull/104) | Feedback + Analytics | Open |
+
+All PRs are purely additive — zero changes to existing Chamber code. Tested against Chamber's full test suite (580 tests, zero regression).
+
 ## License
 
 Internal use only.
