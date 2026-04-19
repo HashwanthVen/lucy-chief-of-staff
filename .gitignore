@@ -1,0 +1,10 @@
+node_modules/
+lucy.db
+lucy.db-shm
+lucy.db-wal
+.env
+memory/episodic/
+memory/session/
+v1-checkpoint/
+.playwright-mcp/
+*.log
