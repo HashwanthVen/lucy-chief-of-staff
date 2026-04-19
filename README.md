@@ -2,7 +2,7 @@
 
 A personal M365 signal dashboard that monitors your email + Teams, surfaces actionable items, and acts like a real Chief of Staff — built on **GitHub Copilot SDK** + **WorkIQ MCP**.
 
-![Architecture](public/architecture.html) <!-- Open http://localhost:4242/architecture.html for visual diagram -->
+> **Architecture diagram**: Open `architecture.excalidraw` in [excalidraw.com](https://excalidraw.com) or run the server and visit `http://localhost:4242/architecture.html`
 
 ## What It Does
 
@@ -15,35 +15,36 @@ A personal M365 signal dashboard that monitors your email + Teams, surfaces acti
 | **📅 Meeting Prep** | Auto-gathers context for today's meetings from attendee communications |
 | **🏛️ Model Council** | Toggle to query multiple LLMs in parallel, pick the best answer |
 | **💜 SOUL Personality** | Persistent personality file (`soul/SOUL.md`) injected into every agent |
-| **🧠 3-Tier Memory** | Semantic (permanent) · Episodic (7d decay) · Session (1d decay) |
+| **🧠 3-Tier Memory** | Semantic (permanent) · Episodic (7d decay) · Session (1d decay) — Genesis-inspired |
 | **💡 Self-Learning** | Tracks dismissal patterns, adapts behavior, "Teach Lucy" input |
 | **📈 Analytics** | Time saved, signals processed, priority distribution, top senders |
 | **⌨️ Cmd+K + Shortcuts** | Command palette, J/K/D/A/B/S keyboard navigation |
 | **🔔 Push Notifications** | Desktop notifications for high-priority signals |
 
-## Prerequisites
+## Setup — Paste This Into Copilot CLI
 
-- **Node.js 18+** (v24 recommended)
-- **GitHub Copilot subscription** (active, logged in via `gh auth login`)
-- **GitHub CLI** (`gh`) installed and authenticated
-- **Copilot CLI** installed (`winget install GitHub.Copilot` or `npm install -g @github/copilot`)
+Just open Copilot CLI and paste:
 
-## Quick Start
+```
+Clone https://github.com/v-sutharapuh_microsoft/lucy-ghcopilotsdk-chief-of-staff, run npm install, then npm start. If Node.js isn't installed, install it first. Accept any WorkIQ EULA prompts.
+```
+
+Or manually:
 
 ```bash
-# 1. Clone
-git clone https://github.com/v-sutharapuh_microsoft/lucy-chief-of-staff.git
-cd lucy-chief-of-staff
-
-# 2. Install dependencies
+git clone https://github.com/v-sutharapuh_microsoft/lucy-ghcopilotsdk-chief-of-staff.git
+cd lucy-ghcopilotsdk-chief-of-staff
 npm install
-
-# 3. Start Lucy
 npm start
-
-# 4. Open dashboard
-# → http://localhost:4242
+# → Open http://localhost:4242
 ```
+
+## Prerequisites
+
+- **Node.js 18+** (`winget install OpenJS.NodeJS` or `brew install node`)
+- **GitHub Copilot subscription** (active)
+- **GitHub CLI** authenticated (`gh auth login`)
+- WorkIQ EULA is auto-accepted on first run — no manual steps needed
 
 That's it. Lucy will:
 1. Initialize 4 AI agents (Mail, Teams, Scanner, Router)
