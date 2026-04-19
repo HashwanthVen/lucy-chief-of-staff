@@ -726,6 +726,89 @@ app.post("/api/council/vote", (req, res) => {
   res.json({ ok: true });
 });
 
+// ─── Text-to-Speech (Edge TTS) ──────────────────────────────
+app.get("/api/tts", async (req, res) => {
+  const text = req.query.text as string;
+  const voice = (req.query.voice as string) || "en-US-EmmaMultilingualNeural";
+  const rate = (req.query.rate as string) || "+0%";
+
+  if (!text) return res.status(400).json({ error: "text query param required" });
+
+  try {
+    const { streamSpeech } = await import("@bestcodes/edge-tts");
+    res.setHeader("Content-Type", "audio/mpeg");
+    res.setHeader("Transfer-Encoding", "chunked");
+    res.setHeader("Cache-Control", "no-cache");
+
+    for await (const chunk of streamSpeech({ text, voice, rate })) {
+      if (chunk.type === "audio" && chunk.data) {
+        res.write(chunk.data);
+      }
+    }
+    res.end();
+  } catch (err) {
+    console.error("[tts] error:", err);
+    if (!res.headersSent) {
+      res.status(500).json({ error: "TTS generation failed" });
+    } else {
+      res.end();
+    }
+  }
+});
+
+// TTS with word boundary timing (for lip-sync)
+app.get("/api/tts/stream", async (req, res) => {
+  const text = req.query.text as string;
+  const voice = (req.query.voice as string) || "en-US-EmmaMultilingualNeural";
+
+  if (!text) return res.status(400).json({ error: "text query param required" });
+
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    Connection: "keep-alive",
+  });
+  req.socket.setNoDelay(true);
+
+  try {
+    const { streamSpeech } = await import("@bestcodes/edge-tts");
+    const audioChunks: Buffer[] = [];
+
+    for await (const chunk of streamSpeech({ text, voice })) {
+      if (chunk.type === "audio" && chunk.data) {
+        audioChunks.push(Buffer.from(chunk.data));
+      } else if (chunk.type === "WordBoundary") {
+        res.write(`event: word\ndata: ${JSON.stringify({ text: chunk.text, offset: chunk.offset, duration: chunk.duration })}\n\n`);
+      } else if (chunk.type === "SentenceBoundary") {
+        res.write(`event: sentence\ndata: ${JSON.stringify({ text: chunk.text, offset: chunk.offset })}\n\n`);
+      }
+    }
+
+    // Send complete audio as base64 after all word events
+    const fullAudio = Buffer.concat(audioChunks);
+    res.write(`event: audio\ndata: ${JSON.stringify({ audio: fullAudio.toString("base64"), size: fullAudio.length })}\n\n`);
+    res.write("event: done\ndata: {}\n\n");
+    res.end();
+  } catch (err) {
+    console.error("[tts-stream] error:", err);
+    res.write(`event: error\ndata: ${JSON.stringify({ error: String(err) })}\n\n`);
+    res.end();
+  }
+});
+
+// Available TTS voices
+app.get("/api/tts/voices", async (_req, res) => {
+  try {
+    const { getVoices } = await import("@bestcodes/edge-tts");
+    const voices = await getVoices();
+    const english = voices.filter((v: { Locale: string }) => v.Locale.startsWith("en-"));
+    res.json(english);
+  } catch (err) {
+    console.error("[tts-voices] error:", err);
+    res.status(500).json({ error: "Failed to fetch voices" });
+  }
+});
+
 // ─── Chat (real SSE streaming) ──────────────────────────────
 app.post("/ask", async (req, res) => {
   const { prompt } = req.body;

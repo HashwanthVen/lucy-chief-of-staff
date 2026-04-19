@@ -396,6 +396,56 @@ h3 { font-size: 14px; font-weight: 600; }
 
 /* ── Chat (M365 Copilot style) ─────────────────────────── */
 .chat-container { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+
+/* Avatar + Voice bar */
+.avatar-voice-bar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--colorNeutralStroke2);
+  background: var(--colorNeutralBackground2);
+}
+.avatar-panel {
+  width: 120px; height: 150px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 40%, rgba(101,76,245,0.15) 0%, transparent 70%);
+  border: 1px solid var(--colorNeutralStroke2);
+  flex-shrink: 0;
+}
+.avatar-panel.hidden { display: none; }
+.avatar-canvas-wrap { width: 100%; height: 100%; }
+.avatar-canvas-wrap canvas { width: 100% !important; height: 100% !important; }
+.voice-controls {
+  display: flex; align-items: center; gap: 8px;
+}
+.voice-toggle, .avatar-toggle {
+  width: 36px; height: 36px; border-radius: 8px;
+  background: var(--colorNeutralBackground4);
+  border: 1px solid var(--colorNeutralStroke1);
+  color: var(--colorNeutralForeground1);
+  font-size: 18px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s;
+}
+.voice-toggle:hover, .avatar-toggle:hover { background: var(--colorNeutralBackground5); }
+.voice-toggle.muted { opacity: 0.4; }
+.voice-toggle.speaking {
+  background: var(--colorBrandBackground);
+  animation: voicePulse 0.5s ease-in-out infinite alternate;
+}
+@keyframes voicePulse {
+  from { box-shadow: 0 0 0 0 rgba(101,76,245,0.4); }
+  to { box-shadow: 0 0 0 8px rgba(101,76,245,0); }
+}
+.voice-picker {
+  background: var(--colorNeutralBackground4);
+  color: var(--colorNeutralForeground1);
+  border: 1px solid var(--colorNeutralStroke1);
+  border-radius: 6px; padding: 4px 8px;
+  font-size: var(--fontSizeBase200);
+  font-family: var(--fontFamilyBase);
+}
+
 .chat-messages {
   flex: 1;
   overflow-y: auto;
@@ -1414,6 +1464,23 @@ h3 { font-size: 14px; font-weight: 600; }
     <!-- Chat panel -->
     <div id="panel-chat" class="panel">
       <div class="chat-container">
+        <!-- Avatar + Voice controls -->
+        <div class="avatar-voice-bar" id="avatar-voice-bar">
+          <div class="avatar-panel" id="avatar-panel">
+            <div class="avatar-canvas-wrap" id="avatar-canvas"></div>
+          </div>
+          <div class="voice-controls">
+            <button class="voice-toggle" id="voice-toggle" onclick="toggleVoice()" title="Toggle voice">&#128266;</button>
+            <select class="voice-picker" id="voice-picker" onchange="setVoice(this.value)" title="Choose voice">
+              <option value="en-US-EmmaMultilingualNeural">Emma (Neural)</option>
+              <option value="en-US-AvaNeural">Ava (Neural)</option>
+              <option value="en-US-AriaNeural">Aria (Neural)</option>
+              <option value="en-GB-SoniaNeural">Sonia (UK)</option>
+              <option value="en-AU-NatashaNeural">Natasha (AU)</option>
+            </select>
+            <button class="avatar-toggle" id="avatar-toggle" onclick="toggleAvatar()" title="Toggle avatar">&#129489;</button>
+          </div>
+        </div>
         <div class="chat-messages" id="chat-messages"></div>
         <div class="chat-input-area">
           <div class="council-bar" id="council-bar">
@@ -2011,11 +2078,13 @@ async function sendChat() {
               msgs.scrollTo({ top: msgs.scrollHeight, behavior: 'smooth' });
             } else if (evtType === 'delta' && data.text) {
               fullText += data.text;
+              bufferForVoice(data.text);
               contentEl.innerHTML = renderMarkdown(fullText) + '<span class="cursor">&#9610;</span>';
               msgs.scrollTo({ top: msgs.scrollHeight, behavior: 'smooth' });
             } else if (evtType === 'done') {
               contentEl.innerHTML = renderMarkdown(fullText);
               labelEl.classList.remove('active-label');
+              flushVoiceBuffer();
               // Chat follow-up suggestions
               const followUps = generateFollowUps(chatAgent, fullText);
               if (followUps.length) {
@@ -3023,5 +3092,157 @@ function sendFollowUp(prompt) {
     </div>
   </div>
 </div>
+<!-- Voice + Avatar System -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/",
+    "@pixiv/three-vrm": "https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@3/lib/three-vrm.module.min.js"
+  }
+}
+</script>
+<script>
+// Voice + Avatar state
+let voiceEnabled = true;
+let avatarVisible = true;
+let currentVoice = 'en-US-EmmaMultilingualNeural';
+let voiceQueue = [];
+let isVoicePlaying = false;
+let avatarModule = null;
+
+// Voice toggle
+function toggleVoice() {
+  voiceEnabled = !voiceEnabled;
+  const btn = document.getElementById('voice-toggle');
+  btn.classList.toggle('muted', !voiceEnabled);
+  btn.innerHTML = voiceEnabled ? '&#128266;' : '&#128264;';
+  if (!voiceEnabled) { voiceQueue = []; isVoicePlaying = false; }
+}
+
+function setVoice(voice) { currentVoice = voice; }
+
+// Avatar toggle
+function toggleAvatar() {
+  avatarVisible = !avatarVisible;
+  document.getElementById('avatar-panel').classList.toggle('hidden', !avatarVisible);
+}
+
+// Sentence buffer for voice
+let voiceBuffer = '';
+
+function bufferForVoice(text) {
+  if (!voiceEnabled) return;
+  voiceBuffer += text;
+  // Split on sentence boundaries
+  const sentences = voiceBuffer.match(/[^.!?]*[.!?]+/g);
+  if (sentences) {
+    for (const s of sentences) {
+      const clean = s.trim();
+      if (clean.length > 2) voiceQueue.push(clean);
+    }
+    voiceBuffer = voiceBuffer.replace(/[^.!?]*[.!?]+/g, '');
+  }
+  if (!isVoicePlaying) playNextSentence();
+}
+
+function flushVoiceBuffer() {
+  if (!voiceEnabled) return;
+  const remaining = voiceBuffer.trim();
+  if (remaining.length > 2) voiceQueue.push(remaining);
+  voiceBuffer = '';
+  if (!isVoicePlaying) playNextSentence();
+}
+
+async function playNextSentence() {
+  if (voiceQueue.length === 0) {
+    isVoicePlaying = false;
+    document.getElementById('voice-toggle').classList.remove('speaking');
+    if (avatarModule) avatarModule.setSpeaking(false);
+    return;
+  }
+
+  isVoicePlaying = true;
+  document.getElementById('voice-toggle').classList.add('speaking');
+  if (avatarModule) avatarModule.setSpeaking(true);
+
+  const sentence = voiceQueue.shift();
+  try {
+    const res = await fetch('/api/tts/stream?text=' + encodeURIComponent(sentence) + '&voice=' + encodeURIComponent(currentVoice));
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+    let audioBase64 = null;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const lines = buf.split('\n');
+      buf = lines.pop() || '';
+
+      let evtType = '';
+      for (const line of lines) {
+        if (line.startsWith('event: ')) evtType = line.slice(7).trim();
+        if (line.startsWith('data: ')) {
+          try {
+            const d = JSON.parse(line.slice(6));
+            if (evtType === 'word' && avatarModule) {
+              avatarModule.onWordBoundary(d.text);
+            } else if (evtType === 'audio') {
+              audioBase64 = d.audio;
+            }
+          } catch {}
+        }
+      }
+    }
+
+    // Play the audio
+    if (audioBase64) {
+      const audioBlob = new Blob([Uint8Array.from(atob(audioBase64), c => c.charCodeAt(0))], { type: 'audio/mpeg' });
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const audio = new Audio(audioUrl);
+      await new Promise((resolve) => {
+        audio.onended = resolve;
+        audio.onerror = resolve;
+        audio.play().catch(resolve);
+      });
+      URL.revokeObjectURL(audioUrl);
+    }
+  } catch (err) {
+    console.warn('[voice] TTS error, trying Web Speech fallback:', err);
+    // Fallback: Web Speech API
+    if ('speechSynthesis' in window) {
+      const utterance = new SpeechSynthesisUtterance(sentence);
+      utterance.rate = 0.95;
+      utterance.pitch = 1.05;
+      const voices = speechSynthesis.getVoices();
+      const female = voices.find(v => v.name.includes('Zira') || v.name.includes('Eva') || v.name.includes('female'));
+      if (female) utterance.voice = female;
+      await new Promise(resolve => { utterance.onend = resolve; speechSynthesis.speak(utterance); });
+    }
+  }
+
+  if (avatarModule) avatarModule.onSilence();
+  playNextSentence();
+}
+
+// Init avatar (lazy-load three.js only when visible)
+async function initAvatarSystem() {
+  try {
+    avatarModule = await import('/avatar.js');
+    const container = document.getElementById('avatar-canvas');
+    await avatarModule.initAvatar(container);
+    console.log('[voice+avatar] system ready');
+  } catch (err) {
+    console.warn('[avatar] Failed to init 3D avatar, fallback active:', err);
+  }
+}
+
+// Auto-init on page load
+window.addEventListener('DOMContentLoaded', () => {
+  setTimeout(initAvatarSystem, 1000); // delay to not block initial render
+});
+</script>
 </body>
 </html>
