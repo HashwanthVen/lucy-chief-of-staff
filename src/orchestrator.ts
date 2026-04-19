@@ -258,42 +258,36 @@ No markdown, no explanation, just the JSON array.`;
 {"subject":"...","senderName":"...","senderEmail":"...","receivedTime":"...","snippet":"...","needsAction":true/false,"priority":"high|medium|low","sourceUrl":"...or null"}
 No markdown, no explanation, just the JSON array.`;
 
-  // Fetch emails
-  if (mailAgent) {
-    onPhase("Loading recent emails...");
-    try {
-      const result = await mailAgent.session.sendAndWait(
-        { prompt: emailPrompt },
-        CHAT_TIMEOUT
-      );
-      const raw = result?.data?.content || "[]";
-      const items = parseStreamItems(raw, "email");
-      onItems("email", items);
-    } catch (err) {
-      onError(`Email fetch error: ${err instanceof Error ? err.message : String(err)}`);
-    }
-  } else {
-    onError("Mail agent unavailable");
-  }
+  // Parallel fan-out — query both sources simultaneously
+  onPhase("Loading emails + Teams in parallel...");
 
-  // Fetch Teams
-  if (teamsAgent) {
-    onPhase("Loading recent Teams messages...");
-    try {
-      const result = await teamsAgent.session.sendAndWait(
-        { prompt: teamsPrompt },
-        CHAT_TIMEOUT
-      );
-      const raw = result?.data?.content || "[]";
-      const items = parseStreamItems(raw, "teams");
-      onItems("teams", items);
-    } catch (err) {
-      onError(`Teams fetch error: ${err instanceof Error ? err.message : String(err)}`);
-    }
-  } else {
-    onError("Teams agent unavailable");
-  }
+  const emailPromise = mailAgent
+    ? (async () => {
+        try {
+          const result = await mailAgent!.session.sendAndWait({ prompt: emailPrompt }, CHAT_TIMEOUT);
+          const items = parseStreamItems(result?.data?.content || "[]", "email");
+          onPhase("✓ Emails loaded");
+          onItems("email", items);
+        } catch (err) {
+          onError(`Email fetch error: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      })()
+    : Promise.resolve(onError("Mail agent unavailable"));
 
+  const teamsPromise = teamsAgent
+    ? (async () => {
+        try {
+          const result = await teamsAgent!.session.sendAndWait({ prompt: teamsPrompt }, CHAT_TIMEOUT);
+          const items = parseStreamItems(result?.data?.content || "[]", "teams");
+          onPhase("✓ Teams loaded");
+          onItems("teams", items);
+        } catch (err) {
+          onError(`Teams fetch error: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      })()
+    : Promise.resolve(onError("Teams agent unavailable"));
+
+  await Promise.all([emailPromise, teamsPromise]);
   onDone();
 }
 

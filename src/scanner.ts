@@ -76,20 +76,32 @@ function parseJsonResponse(text: string): ScanResult[] {
   }
   try {
     const parsed = JSON.parse(cleaned);
-    if (Array.isArray(parsed)) return parsed;
+    if (Array.isArray(parsed)) return parsed.filter(validateScanResult);
     return [];
   } catch {
     // Try to find JSON array in the text
     const match = cleaned.match(/\[[\s\S]*\]/);
     if (match) {
       try {
-        return JSON.parse(match[0]);
+        const arr = JSON.parse(match[0]);
+        if (Array.isArray(arr)) return arr.filter(validateScanResult);
       } catch {
         return [];
       }
     }
     return [];
   }
+}
+
+// Validate each scan result has minimum required fields
+function validateScanResult(item: unknown): item is ScanResult {
+  if (!item || typeof item !== "object") return false;
+  const r = item as Record<string, unknown>;
+  if (!r.title || typeof r.title !== "string") return false;
+  if (!r.summary || typeof r.summary !== "string") return false;
+  if (r.priority && !["high", "medium", "low"].includes(String(r.priority))) return false;
+  if (r.source && !["email", "teams"].includes(String(r.source))) return false;
+  return true;
 }
 
 export async function runScan(): Promise<Scan> {
