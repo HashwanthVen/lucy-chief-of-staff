@@ -43,19 +43,19 @@ export async function initAvatar(container) {
   renderer.toneMappingExposure = 1.2;
   container.appendChild(renderer.domElement);
 
-  // Lighting: soft Fluent-themed
-  const ambient = new THREE.AmbientLight(0x887dff, 0.6);
+  // Lighting: bright enough to see the model clearly
+  const ambient = new THREE.AmbientLight(0xffffff, 1.0);
   scene.add(ambient);
 
-  const keyLight = new THREE.DirectionalLight(0xffffff, 1.0);
+  const keyLight = new THREE.DirectionalLight(0xffffff, 1.5);
   keyLight.position.set(1, 2, 2);
   scene.add(keyLight);
 
-  const fillLight = new THREE.DirectionalLight(0x479ef5, 0.3);
+  const fillLight = new THREE.DirectionalLight(0x88aaff, 0.5);
   fillLight.position.set(-1, 1, 1);
   scene.add(fillLight);
 
-  const rimLight = new THREE.DirectionalLight(0x654cf5, 0.4);
+  const rimLight = new THREE.DirectionalLight(0x887dff, 0.6);
   rimLight.position.set(0, 1, -1);
   scene.add(rimLight);
 
@@ -72,8 +72,27 @@ export async function initAvatar(container) {
   try {
     const gltf = await loader.loadAsync('/lucy.vrm');
     vrm = gltf.userData.vrm;
-    VRMUtils.rotateVRM0(vrm);
+
+    // Only rotate if VRM0 (VRM1 doesn't need it)
+    if (vrm.meta?.metaVersion === '0') {
+      VRMUtils.rotateVRM0(vrm);
+    }
+
     scene.add(vrm.scene);
+
+    // Auto-frame camera on the model's head/shoulders
+    const box = new THREE.Box3().setFromObject(vrm.scene);
+    const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+
+    // Position camera for bust shot (head + shoulders)
+    const headY = center.y + size.y * 0.3; // Focus on upper third
+    camera.position.set(0, headY, size.y * 0.7);
+    camera.lookAt(0, headY, 0);
+    camera.fov = 30;
+    camera.updateProjectionMatrix();
+
+    console.log('[avatar] VRM loaded — size:', size, 'center:', center);
 
     // Setup animations if available
     if (gltf.animations && gltf.animations.length > 0) {
@@ -84,7 +103,7 @@ export async function initAvatar(container) {
 
     isInitialized = true;
     animate();
-    console.log('[avatar] VRM loaded successfully');
+    console.log('[avatar] VRM rendering started');
   } catch (err) {
     console.warn('[avatar] VRM load failed, using fallback:', err);
     createFallbackAvatar(container);
@@ -149,10 +168,21 @@ function animate() {
     }
   }
 
-  // Eye tracking (follow mouse)
+  // Eye tracking (follow mouse) — VRM1 lookAt uses Object3D target, not Vector3
   if (vrm.lookAt) {
-    const target = new THREE.Vector3(mouseX * 0.5, 1.35 + mouseY * 0.2, 2);
-    vrm.lookAt.target = target;
+    if (!vrm.lookAt._lucyTarget) {
+      const box = new THREE.Box3().setFromObject(vrm.scene);
+      const center = box.getCenter(new THREE.Vector3());
+      const size = box.getSize(new THREE.Vector3());
+      const headY = center.y + size.y * 0.3;
+      const targetObj = new THREE.Object3D();
+      targetObj.position.set(0, headY, 2);
+      scene.add(targetObj);
+      vrm.lookAt.target = targetObj;
+      vrm.lookAt._lucyTarget = targetObj;
+      vrm.lookAt._lucyHeadY = headY;
+    }
+    vrm.lookAt._lucyTarget.position.set(mouseX * 0.5, vrm.lookAt._lucyHeadY + mouseY * 0.2, 2);
   }
 
   // Smooth mouth shape interpolation
