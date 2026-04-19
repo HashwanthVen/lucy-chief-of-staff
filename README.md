@@ -2,7 +2,10 @@
 
 A personal M365 signal dashboard that monitors your email + Teams, surfaces actionable items, and acts like a real Chief of Staff — built on **GitHub Copilot SDK** + **WorkIQ MCP**.
 
-> **Architecture diagram**: Open `architecture.excalidraw` in [excalidraw.com](https://excalidraw.com) or run the server and visit `http://localhost:4242/architecture.html`
+> **Architecture diagram**: 
+<img width="1150" height="530" alt="Untitled-2026-04-18-1757" src="https://github.com/user-attachments/assets/34cf927b-7e29-44ef-adca-f539aa0b0abc" />
+
+
 
 ## What It Does
 
