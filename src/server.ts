@@ -730,17 +730,18 @@ app.post("/api/council/vote", (req, res) => {
 app.get("/api/tts", async (req, res) => {
   const text = req.query.text as string;
   const voice = (req.query.voice as string) || "en-US-EmmaMultilingualNeural";
-  const rate = (req.query.rate as string) || "+0%";
 
   if (!text) return res.status(400).json({ error: "text query param required" });
 
   try {
-    const { streamSpeech } = await import("@bestcodes/edge-tts");
+    const { Communicate } = await import("edge-tts-universal");
+    const comm = new Communicate(text, { voice });
+
     res.setHeader("Content-Type", "audio/mpeg");
     res.setHeader("Transfer-Encoding", "chunked");
     res.setHeader("Cache-Control", "no-cache");
 
-    for await (const chunk of streamSpeech({ text, voice, rate })) {
+    for await (const chunk of comm.stream()) {
       if (chunk.type === "audio" && chunk.data) {
         res.write(chunk.data);
       }
@@ -771,10 +772,11 @@ app.get("/api/tts/stream", async (req, res) => {
   req.socket.setNoDelay(true);
 
   try {
-    const { streamSpeech } = await import("@bestcodes/edge-tts");
+    const { Communicate } = await import("edge-tts-universal");
+    const comm = new Communicate(text, { voice });
     const audioChunks: Buffer[] = [];
 
-    for await (const chunk of streamSpeech({ text, voice })) {
+    for await (const chunk of comm.stream()) {
       if (chunk.type === "audio" && chunk.data) {
         audioChunks.push(Buffer.from(chunk.data));
       } else if (chunk.type === "WordBoundary") {
@@ -799,8 +801,8 @@ app.get("/api/tts/stream", async (req, res) => {
 // Available TTS voices
 app.get("/api/tts/voices", async (_req, res) => {
   try {
-    const { getVoices } = await import("@bestcodes/edge-tts");
-    const voices = await getVoices();
+    const { listVoices } = await import("edge-tts-universal");
+    const voices = await listVoices();
     const english = voices.filter((v: { Locale: string }) => v.Locale.startsWith("en-"));
     res.json(english);
   } catch (err) {
