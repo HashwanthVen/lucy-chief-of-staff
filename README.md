@@ -29,10 +29,23 @@ A personal M365 signal dashboard that monitors your email + Teams, surfaces acti
 
 ## Setup — Paste This Into Copilot CLI
 
-Just open Copilot CLI and paste:
+Open Copilot CLI (or VS Code Copilot Chat) and paste this single prompt:
 
 ```
-Clone https://github.com/v-sutharapuh_microsoft/lucy-ghcopilotsdk-chief-of-staff and set it up end-to-end. Check if Node.js 18+ is installed (if not, install it). Check if GitHub CLI is authenticated (if not, run gh auth login). Then run npm install and npm start. Accept any WorkIQ EULA prompts automatically. Open http://localhost:4242 when ready.
+I want to set up Lucy — a Chief of Staff AI dashboard. Here's what I need you to do end-to-end without asking me any questions:
+
+1. Check if Node.js 18+ is installed. If not, install it (use winget on Windows, brew on Mac).
+2. Check if GitHub CLI (gh) is installed. If not, install it (winget install GitHub.cli on Windows, brew install gh on Mac).
+3. Check if I'm logged into GitHub CLI. If not, run gh auth login and walk me through it.
+4. Clone this repo: https://github.com/v-sutharapuh_microsoft/lucy-ghcopilotsdk-chief-of-staff
+5. cd into the cloned folder and run npm install.
+6. Run npm start to launch the server.
+7. Wait for the server to print "Lucy ready" in the console (this takes ~60 seconds as 4 AI agents initialize).
+8. Once ready, open http://localhost:4242 in my browser.
+9. If there are any EULA or permission prompts, accept them automatically.
+10. Tell me when everything is running and what I'm looking at.
+
+Important: Do NOT ask me to do anything manually. Handle every step yourself. If something fails, troubleshoot and fix it before moving on.
 ```
 
 Or manually:
