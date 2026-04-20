@@ -2,6 +2,7 @@ import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
 import { v4 as uuidv4 } from "uuid";
+import rateLimit from "express-rate-limit";
 import { initStore, getSignals, updateSignalStatus, getSignalCount, getScansToday, getLastScan, getScans, getActivity, insertActivity, getModelConfig, setModelConfig, insertFeedback, getDismissalPatterns, getRecentFeedback, markFeedbackApplied, deleteMemory } from "./store.js";
 import { initMailAgent, initTeamsAgent, initScanner, initRouter, AVAILABLE_MODELS } from "./agents.js";
 import { setScannerAgent, runScan, getScannerStatus } from "./scanner.js";
@@ -23,7 +24,13 @@ let scanIntervalStart = Date.now();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "..", "public")));
 
-// SSE clients for real-time updates
+// Rate limiting
+const scanLimiter = rateLimit({ windowMs: 60_000, max: 5, message: { error: "Too many scan requests" } });
+const chatLimiter = rateLimit({ windowMs: 60_000, max: 10, message: { error: "Too many chat requests" } });
+const ttsLimiter = rateLimit({ windowMs: 60_000, max: 30, message: { error: "Too many TTS requests" } });
+
+// SSE clients for real-time updates (max 10)
+const MAX_SSE_CLIENTS = 10;
 const sseClients: express.Response[] = [];
 
 function broadcastSSE(event: string, data: unknown): void {
@@ -47,6 +54,9 @@ app.get("/health", (_req, res) => {
 
 // ─── SSE endpoint ───────────────────────────────────────────
 app.get("/events", (req, res) => {
+  if (sseClients.length >= MAX_SSE_CLIENTS) {
+    return res.status(429).json({ error: "Too many SSE connections" });
+  }
   res.writeHead(200, {
     "Content-Type": "text/event-stream",
     "Cache-Control": "no-cache",
@@ -127,7 +137,7 @@ app.get("/api/activity", (req, res) => {
 });
 
 // ─── Scanner ────────────────────────────────────────────────
-app.post("/scanner/scan", async (_req, res) => {
+app.post("/scanner/scan", scanLimiter, async (_req, res) => {
   try {
     const scan = await runScan();
     scanIntervalStart = Date.now();
@@ -727,7 +737,7 @@ app.post("/api/council/vote", (req, res) => {
 });
 
 // ─── Text-to-Speech (Edge TTS) ──────────────────────────────
-app.get("/api/tts", async (req, res) => {
+app.get("/api/tts", ttsLimiter, async (req, res) => {
   const text = req.query.text as string;
   const voice = (req.query.voice as string) || "en-US-EmmaMultilingualNeural";
 
@@ -812,7 +822,7 @@ app.get("/api/tts/voices", async (_req, res) => {
 });
 
 // ─── Chat (real SSE streaming) ──────────────────────────────
-app.post("/ask", async (req, res) => {
+app.post("/ask", chatLimiter, async (req, res) => {
   const { prompt } = req.body;
   if (!prompt) return res.status(400).json({ error: "prompt required" });
 

@@ -1442,18 +1442,102 @@ h3 { font-size: 14px; font-weight: 600; }
   background: rgba(101,76,245,0.1);
   border-color: var(--colorBrandForeground1);
 }
+/* ── Quick Wins: Accessibility + UX ─────────────────── */
+
+/* Focus visible for keyboard users */
+*:focus-visible {
+  outline: 2px solid var(--colorBrandForeground1);
+  outline-offset: 2px;
+}
+
+/* Signal actions visible on focus-within (not just hover) */
+.signal-card:focus-within .signal-actions { opacity: 1; }
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Skeleton loading shimmer */
+.skeleton {
+  background: linear-gradient(90deg, var(--colorNeutralBackground3) 25%, var(--colorNeutralBackground4) 50%, var(--colorNeutralBackground3) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 6px;
+}
+.skeleton-card { height: 72px; margin-bottom: 8px; }
+.skeleton-line { height: 14px; margin-bottom: 6px; }
+.skeleton-line.short { width: 60%; }
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+/* Sender avatar initials */
+.signal-avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 600; color: #fff;
+  flex-shrink: 0; margin-right: 10px;
+}
+
+/* Undo toast */
+.undo-toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: var(--colorNeutralBackground4); color: var(--colorNeutralForeground1);
+  padding: 10px 20px; border-radius: 10px;
+  display: flex; align-items: center; gap: 12px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  z-index: 1000; animation: toastIn 0.3s ease;
+}
+.undo-toast button {
+  background: var(--colorBrandBackground); color: #fff; border: none;
+  padding: 4px 12px; border-radius: 6px; cursor: pointer; font-size: 13px;
+}
+@keyframes toastIn { from { opacity: 0; transform: translateX(-50%) translateY(20px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+
+/* SSE reconnecting banner */
+.reconnect-banner {
+  position: fixed; top: 0; left: 0; right: 0;
+  background: var(--colorStatusWarningForeground1); color: #000;
+  text-align: center; padding: 4px; font-size: 12px;
+  z-index: 9999; display: none;
+}
+.reconnect-banner.visible { display: block; }
+
+/* First-run onboarding overlay */
+.onboarding-overlay {
+  position: fixed; inset: 0; z-index: 9998;
+  background: rgba(0,0,0,0.8); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+}
+.onboarding-card {
+  background: var(--colorNeutralBackground3); border-radius: 16px;
+  padding: 32px 40px; max-width: 420px; text-align: center;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+}
+.onboarding-card h2 { margin-bottom: 16px; font-size: 24px; }
+.onboarding-card .steps { text-align: left; margin: 16px 0; line-height: 1.8; }
+.onboarding-card button {
+  background: var(--colorBrandBackground); color: #fff; border: none;
+  padding: 10px 28px; border-radius: 8px; cursor: pointer;
+  font-size: 16px; margin-top: 12px;
+}
 </style>
 </head>
 <body>
+<!-- SSE Reconnect Banner -->
+<div class="reconnect-banner" id="reconnect-banner">&#9888; Connection lost — reconnecting...</div>
 <div class="app">
   <!-- Header -->
-  <header class="header">
+  <header class="header" role="banner">
     <div class="header-brand">
       <span class="sparkle">&#10024;</span>
       <span class="brand-name">Lucy</span>
       <span class="brand-sub">Chief of Staff</span>
     </div>
-    <div class="header-stats">
+    <div class="header-stats" role="complementary" aria-label="Signal statistics">
       <div><span class="stat-val" id="stat-new">0</span> new</div>
       <div><span class="stat-val" id="stat-scans">0</span> scans</div>
       <div>last: <span id="stat-last">never</span></div>
@@ -1461,7 +1545,7 @@ h3 { font-size: 14px; font-weight: 600; }
   </header>
 
   <!-- Sidebar -->
-  <aside class="sidebar">
+  <aside class="sidebar" role="navigation" aria-label="Main navigation">
     <nav class="sidebar-nav">
       <button class="nav-item active" data-panel="feed" onclick="switchPanel('feed', this)">
         <span class="nav-icon">&#128229;</span>
@@ -1499,7 +1583,7 @@ h3 { font-size: 14px; font-weight: 600; }
     </nav>
     <div class="sidebar-footer">
       <div class="scanner-status">
-        <span class="scanner-phase" id="scanner-phase">Scanner idle</span>
+        <span class="scanner-phase" id="scanner-phase" aria-live="polite">Scanner idle</span>
         <span class="scanner-countdown" id="scanner-countdown"></span>
       </div>
       <button class="scan-btn" id="scan-btn" onclick="manualScan()">&#128269; Scan Now</button>
@@ -1582,7 +1666,7 @@ h3 { font-size: 14px; font-weight: 600; }
         </div>
         <!-- Transcript (collapsible, 35%) -->
         <div class="transcript-panel" id="transcript-panel">
-          <div class="chat-messages" id="chat-messages"></div>
+          <div class="chat-messages" id="chat-messages" aria-live="polite" role="main"></div>
         </div>
         <!-- Voice-first input bar -->
         <div class="chat-input-area">
@@ -1765,13 +1849,41 @@ function switchPanel(name, el) {
   if (name === 'log') loadActivity();
   if (name === 'soul') loadSoul();
   if (name === 'analytics') loadAnalytics();
-  // Init avatar when chat panel first becomes visible
   if (name === 'chat') initAvatarIfNeeded();
+  // Persist active panel
+  try { localStorage.setItem('lucy-active-panel', name); } catch {}
 }
 
+// Restore last active panel on load
+(function() {
+  const saved = localStorage.getItem('lucy-active-panel');
+  if (saved) {
+    const btn = document.querySelector('[data-panel="' + saved + '"]');
+    if (btn) switchPanel(saved, btn);
+  }
+  // First-run onboarding
+  if (!localStorage.getItem('lucy-onboarded')) {
+    const overlay = document.createElement('div');
+    overlay.className = 'onboarding-overlay';
+    overlay.innerHTML = '<div class="onboarding-card">' +
+      '<h2>&#10024; Welcome to Lucy</h2>' +
+      '<p style="color:var(--colorNeutralForeground3)">Your AI Chief of Staff</p>' +
+      '<div class="steps">' +
+      '<strong>1. Scan</strong> — Lucy monitors your email + Teams every 5 min<br>' +
+      '<strong>2. Triage</strong> — Priority signals surfaced with context<br>' +
+      '<strong>3. Act</strong> — Dig deep, draft replies, get briefings' +
+      '</div>' +
+      '<button onclick="this.closest(\'.onboarding-overlay\').remove(); localStorage.setItem(\'lucy-onboarded\',\'1\');">&#128640; Get Started</button>' +
+      '</div>';
+    document.body.appendChild(overlay);
+  }
+})();
+
 /* ── SSE connection ───────────────────────────────────────── */
-const evtSource = new EventSource('/events');
-evtSource.addEventListener('scan-complete', function(e) {
+// SSE with auto-reconnect
+let evtSource = new EventSource('/events');
+function setupSSE() {
+  evtSource.addEventListener('scan-complete', function(e) {
   loadSignals(); loadStats(); loadActivity();
   try {
     var data = JSON.parse(e.data);
@@ -1785,6 +1897,18 @@ evtSource.addEventListener('scan-complete', function(e) {
   } catch(err) {}
 });
 evtSource.addEventListener('signal-update', () => { loadSignals(); loadStats(); });
+  evtSource.onerror = function() {
+    document.getElementById('reconnect-banner').classList.add('visible');
+    setTimeout(() => {
+      evtSource.close();
+      evtSource = new EventSource('/events');
+      setupSSE();
+      document.getElementById('reconnect-banner').classList.remove('visible');
+      loadSignals(); loadStats();
+    }, 3000);
+  };
+}
+setupSSE();
 
 /* ── Desktop Notifications ────────────────────────────────── */
 if ('Notification' in window && Notification.permission === 'default') {
@@ -2372,8 +2496,11 @@ function renderMarkdown(md) {
   html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
   // Wrap consecutive <li> in <ul>
   html = html.replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul>$1</ul>');
-  // Links
-  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  // Links (sanitize javascript: URLs)
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, function(_, text, href) {
+    const safe = (href.startsWith('http') || href.startsWith('/') || href.startsWith('mailto:')) ? href : '#';
+    return '<a href="' + safe + '" target="_blank" rel="noopener">' + text + '</a>';
+  });
   // Line breaks (but not inside block elements)
   html = html.replace(/\n/g, '<br>');
   // Clean up double <br> after block elements
@@ -3299,19 +3426,12 @@ async function playNextSentence() {
   showSpeechBubble(sentence);
 
   try {
+    console.log('[voice] Speaking:', sentence.substring(0, 50));
     const res = await fetch('/api/tts?text=' + encodeURIComponent(sentence) + '&voice=' + encodeURIComponent(currentVoice));
     const audioBlob = await res.blob();
-    if (avatarModule && avatarModule.getHead()) {
-      try {
-        const arrayBuf = await audioBlob.arrayBuffer();
-        await avatarModule.getHead().speakAudio(arrayBuf);
-      } catch (e) {
-        console.warn('[voice] TalkingHead speakAudio failed, fallback:', e);
-        await playAudioBlob(audioBlob);
-      }
-    } else {
-      await playAudioBlob(audioBlob);
-    }
+    console.log('[voice] TTS audio:', audioBlob.size, 'bytes');
+    // Always play audio directly (reliable)
+    await playAudioBlob(audioBlob);
   } catch (err) {
     console.warn('[voice] TTS error, Web Speech fallback:', err);
     if ('speechSynthesis' in window) {
@@ -3325,7 +3445,17 @@ async function playNextSentence() {
 async function playAudioBlob(blob) {
   const url = URL.createObjectURL(blob);
   const audio = new Audio(url);
-  await new Promise(r => { audio.onended = r; audio.onerror = r; audio.play().catch(r); });
+  audio.volume = 1.0;
+  try {
+    await audio.play();
+    await new Promise(r => { audio.onended = r; audio.onerror = r; });
+  } catch (e) {
+    console.warn('[voice] Autoplay blocked — click anywhere to enable audio. Trying Web Speech fallback.');
+    if ('speechSynthesis' in window) {
+      const u = new SpeechSynthesisUtterance('');
+      speechSynthesis.speak(u); // unlock audio context
+    }
+  }
   URL.revokeObjectURL(url);
 }
 
