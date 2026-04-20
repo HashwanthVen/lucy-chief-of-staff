@@ -399,21 +399,29 @@ h3 { font-size: 14px; font-weight: 600; }
 
 /* Avatar + Voice bar */
 .avatar-voice-bar {
-  display: flex; align-items: flex-start; gap: 12px;
-  padding: 8px 16px;
+  display: flex; flex-direction: column; position: relative;
+  flex: 1; min-height: 300px;
+  background: linear-gradient(180deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
   border-bottom: 1px solid var(--colorNeutralStroke2);
-  background: var(--colorNeutralBackground2);
+  overflow: hidden;
 }
 .avatar-panel {
-  width: 220px; height: 280px;
-  border-radius: 16px;
+  flex: 1; width: 100%; min-height: 250px;
   overflow: hidden;
-  background: radial-gradient(ellipse at 50% 30%, rgba(101,76,245,0.12) 0%, rgba(30,30,30,0.95) 70%);
-  border: 1px solid var(--colorNeutralStroke2);
-  flex-shrink: 0;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.3), inset 0 0 40px rgba(101,76,245,0.05);
 }
 .avatar-panel.hidden { display: none; }
+.avatar-panel.hidden + .voice-controls { display: none; }
+.avatar-canvas-wrap { width: 100%; height: 100%; }
+.avatar-canvas-wrap canvas { width: 100% !important; height: 100% !important; display: block; }
+.voice-controls {
+  display: flex; align-items: center; gap: 8px;
+  position: absolute; top: 8px; right: 8px; z-index: 10;
+}
+.avatar-loading {
+  position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+  color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200);
+  z-index: 10;
+}
 .avatar-canvas-wrap { width: 100%; height: 100%; }
 .avatar-canvas-wrap canvas { width: 100% !important; height: 100% !important; }
 .voice-controls {
@@ -1470,6 +1478,7 @@ h3 { font-size: 14px; font-weight: 600; }
           <div class="avatar-panel" id="avatar-panel">
             <div class="avatar-canvas-wrap" id="avatar-canvas"></div>
           </div>
+          <div class="avatar-loading" id="avatar-loading">Loading avatar...</div>
           <div class="voice-controls">
             <button class="voice-toggle" id="voice-toggle" onclick="toggleVoice()" title="Toggle voice">&#128266;</button>
             <select class="voice-picker" id="voice-picker" onchange="setVoice(this.value)" title="Choose voice">
@@ -3099,9 +3108,9 @@ function sendFollowUp(prompt) {
 <script type="importmap">
 {
   "imports": {
-    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
-    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/",
-    "@pixiv/three-vrm": "https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@3/lib/three-vrm.module.min.js"
+    "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js/+esm",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/",
+    "talkinghead": "https://cdn.jsdelivr.net/gh/met4citizen/TalkingHead@1.7/modules/talkinghead.mjs"
   }
 }
 </script>
@@ -3241,30 +3250,26 @@ async function playNextSentence() {
 // Init avatar only when chat panel is visible (container needs real dimensions)
 let avatarInitDone = false;
 async function initAvatarIfNeeded() {
-  if (avatarInitDone) {
-    // Already initialized — just resize in case panel dimensions changed
-    if (avatarModule && avatarModule.resize) {
-      const c = document.getElementById('avatar-canvas');
-      if (c) avatarModule.resize(c.clientWidth, c.clientHeight);
-    }
-    return;
-  }
+  if (avatarInitDone) return;
   avatarInitDone = true;
+  const loadingEl = document.getElementById('avatar-loading');
   try {
     avatarModule = await import('/avatar.js');
     const container = document.getElementById('avatar-canvas');
-    if (container && container.clientWidth > 0) {
-      await avatarModule.initAvatar(container);
-      console.log('[voice+avatar] system ready');
-    } else {
-      console.warn('[avatar] Container has zero dimensions, retrying in 500ms');
-      setTimeout(async () => {
-        const c = document.getElementById('avatar-canvas');
-        if (c && c.clientWidth > 0) await avatarModule.initAvatar(c);
-      }, 500);
+    if (!container || container.clientWidth === 0) {
+      // Retry after panel is visible
+      setTimeout(initAvatarIfNeeded, 300);
+      avatarInitDone = false;
+      return;
     }
+    await avatarModule.initAvatar(container, (pct) => {
+      if (loadingEl) loadingEl.textContent = 'Loading avatar ' + pct + '%...';
+    });
+    if (loadingEl) loadingEl.style.display = 'none';
+    console.log('[voice+avatar] TalkingHead system ready');
   } catch (err) {
     console.warn('[avatar] Failed to init:', err);
+    if (loadingEl) loadingEl.textContent = 'Avatar unavailable';
   }
 }
 </script>
