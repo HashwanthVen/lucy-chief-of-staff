@@ -23,6 +23,9 @@ A personal M365 signal dashboard that monitors your email + Teams, surfaces acti
 | **📈 Analytics** | Time saved, signals processed, priority distribution, top senders |
 | **⌨️ Cmd+K + Shortcuts** | Command palette, J/K/D/A/B/S keyboard navigation |
 | **🔔 Push Notifications** | Desktop notifications for high-priority signals |
+| **🗣️ Voice Output** | Azure Neural TTS (Edge TTS) — Lucy speaks responses with natural voice |
+| **🧑 3D Avatar** | TalkingHead avatar with lip-sync, gestures, eye contact, 5 conversation states |
+| **🎤 Voice Input** | Push-to-talk microphone (Web Speech API) for two-way conversations |
 
 ## Setup — Paste This Into Copilot CLI
 
