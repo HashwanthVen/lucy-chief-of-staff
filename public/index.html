@@ -2003,28 +2003,43 @@ function renderFilteredSignals() {
     var openBtn = s.sourceUrl
       ? '<a class="btn-open" href="' + esc(s.sourceUrl) + '" target="_blank" rel="noopener">Open</a>'
       : '';
-    return '<div class="signal-card priority-' + s.priority + '" id="signal-' + s.id + '">' +
+    // Sender avatar with initials
+    var initials = (s.sender || '??').split(' ').map(function(w) { return w[0]; }).join('').substring(0,2).toUpperCase();
+    var colors = ['#479ef5','#654cf5','#dc3545','#5cb85c','#f0ad4e','#e83e8c','#20c997','#6f42c1'];
+    var colorIdx = 0; for (var ci=0; ci<initials.length; ci++) colorIdx += initials.charCodeAt(ci);
+    var avatarColor = colors[colorIdx % colors.length];
+    return '<div class="signal-card priority-' + s.priority + '" id="signal-' + s.id + '" tabindex="0">' +
       '<div class="signal-header">' +
-        '<span class="source-icon">' + (s.source === 'email' ? '&#128231;' : '&#128172;') + '</span>' +
-        '<span class="priority-badge ' + s.priority + '">' + s.priority + '</span>' +
-        '<span class="signal-title">' + esc(s.title) + '</span>' +
+        '<div class="signal-avatar" style="background:' + avatarColor + '">' + initials + '</div>' +
+        '<div style="flex:1;min-width:0">' +
+          '<div style="display:flex;align-items:center;gap:6px">' +
+            '<span class="source-icon">' + (s.source === 'email' ? '&#128231;' : '&#128172;') + '</span>' +
+            '<span class="priority-badge ' + s.priority + '">' + s.priority + '</span>' +
+            '<span class="signal-title">' + esc(s.title) + '</span>' +
+          '</div>' +
+          '<div class="signal-meta">' + esc(s.sender) + ' &middot; ' + timeAgo(s.timestamp) + '</div>' +
+        '</div>' +
       '</div>' +
-      '<div class="signal-meta">' + esc(s.sender) + ' &middot; ' + timeAgo(s.timestamp) + '</div>' +
       '<div class="signal-summary">' + esc(s.summary) + '</div>' +
       (s.context ? '<div class="signal-context">' + esc(s.context) + '</div>' : '') +
       (s.suggestedAction ? '<div class="signal-action">' + esc(s.suggestedAction) + '</div>' : '') +
       '<div class="signal-actions">' +
         openBtn +
         '<button class="btn-dig" onclick="digDeep(\'' + s.id + '\')">&#128270; Dig Deep</button>' +
-        '<button class="btn-reply" onclick="draftReply(\'' + s.id + '\')">✏️ Reply</button>' +
+        '<button class="btn-reply" onclick="draftReply(\'' + s.id + '\')">&#9999;&#65039; Reply</button>' +
         '<button class="btn-review" onclick="updateSignal(\'' + s.id + '\',\'reviewed\')">&#10003; Done</button>' +
-        '<button class="btn-dismiss" onclick="updateSignal(\'' + s.id + '\',\'dismissed\')">&#10005;</button>' +
+        '<button class="btn-dismiss" onclick="dismissWithUndo(\'' + s.id + '\')">&#10005;</button>' +
       '</div>' +
     '</div>';
   }).join('');
 }
 
 async function loadSignals() {
+  // Show skeleton while loading
+  const el = document.getElementById('signal-list');
+  if (el && !allSignals.length) {
+    el.innerHTML = '<div class="skeleton skeleton-card"></div><div class="skeleton skeleton-card"></div><div class="skeleton skeleton-card"></div>';
+  }
   try {
     const res = await fetch('/api/signals?status=new');
     allSignals = await res.json();
@@ -2056,6 +2071,44 @@ async function loadActivity() {
 let dismissCount = 0;
 let lastFeedbackPopupTime = 0;
 let currentFeedbackSuggestions = [];
+let undoTimer = null;
+
+// Dismiss with undo toast (5s window)
+function dismissWithUndo(id) {
+  const card = document.getElementById('signal-' + id);
+  if (card) {
+    card.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
+    card.style.transform = 'translateX(100%)';
+    card.style.opacity = '0';
+  }
+
+  // Show undo toast
+  const existing = document.querySelector('.undo-toast');
+  if (existing) existing.remove();
+  clearTimeout(undoTimer);
+
+  const toast = document.createElement('div');
+  toast.className = 'undo-toast';
+  toast.innerHTML = 'Signal dismissed <button onclick="undoDismiss(\'' + id + '\')">Undo</button>';
+  document.body.appendChild(toast);
+
+  // Commit dismiss after 5s
+  undoTimer = setTimeout(() => {
+    toast.remove();
+    updateSignal(id, 'dismissed');
+  }, 5000);
+}
+
+function undoDismiss(id) {
+  clearTimeout(undoTimer);
+  const toast = document.querySelector('.undo-toast');
+  if (toast) toast.remove();
+  const card = document.getElementById('signal-' + id);
+  if (card) {
+    card.style.transform = '';
+    card.style.opacity = '';
+  }
+}
 
 async function updateSignal(id, status) {
   await fetch(`/api/signals/${id}`, {
@@ -3234,6 +3287,8 @@ document.addEventListener('keydown', function(e) {
     case 'a': actActiveSignal(); break;
     case 'b': switchPanel('brief', document.querySelector('[data-panel="brief"]')); break;
     case 's': manualScan(); break;
+    case 'r': replyActiveSignal(); break;
+    case 'Enter': digDeepActiveSignal(); break;
     case '/': e.preventDefault(); var searchEl = document.querySelector('.filter-search'); if (searchEl) searchEl.focus(); break;
     case '?': showShortcutHelp(); break;
     case 'Escape': closeDigDeep(); closeCmdK(); break;
@@ -3262,6 +3317,22 @@ function actActiveSignal() {
   if (activeSignalIdx >= 0 && activeSignalIdx < cards.length) {
     var id = cards[activeSignalIdx].id.replace('signal-', '');
     updateSignal(id, 'reviewed');
+  }
+}
+
+function digDeepActiveSignal() {
+  var cards = document.querySelectorAll('.signal-card');
+  if (activeSignalIdx >= 0 && activeSignalIdx < cards.length) {
+    var id = cards[activeSignalIdx].id.replace('signal-', '');
+    digDeep(id);
+  }
+}
+
+function replyActiveSignal() {
+  var cards = document.querySelectorAll('.signal-card');
+  if (activeSignalIdx >= 0 && activeSignalIdx < cards.length) {
+    var id = cards[activeSignalIdx].id.replace('signal-', '');
+    draftReply(id);
   }
 }
 
