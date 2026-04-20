@@ -394,49 +394,37 @@ h3 { font-size: 14px; font-weight: 600; }
 .btn-reply { color: var(--colorBrandForeground1); border-color: rgba(101,76,245,0.3); }
 .btn-reply:hover { background: rgba(101,76,245,0.1); }
 
-/* ── Chat (M365 Copilot style) ─────────────────────────── */
+/* ── Chat: Video Call Layout ─────────────────────────── */
 .chat-container { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
 
-/* Avatar + Voice bar */
+/* Avatar Viewport — 65% of chat panel, the MAIN interface */
 .avatar-voice-bar {
   display: flex; flex-direction: column; position: relative;
-  flex: 1; min-height: 300px;
-  background: linear-gradient(180deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-  border-bottom: 1px solid var(--colorNeutralStroke2);
+  flex: 2; min-height: 200px;
+  background: linear-gradient(180deg, #0d1117 0%, #161b22 40%, #1a1a2e 100%);
   overflow: hidden;
 }
-.avatar-panel {
-  flex: 1; width: 100%; min-height: 250px;
-  overflow: hidden;
-}
+.avatar-panel { flex: 1; width: 100%; overflow: hidden; }
 .avatar-panel.hidden { display: none; }
-.avatar-panel.hidden + .voice-controls { display: none; }
 .avatar-canvas-wrap { width: 100%; height: 100%; }
 .avatar-canvas-wrap canvas { width: 100% !important; height: 100% !important; display: block; }
+
+/* Voice controls — top right, floating over avatar */
 .voice-controls {
-  display: flex; align-items: center; gap: 8px;
+  display: flex; align-items: center; gap: 6px;
   position: absolute; top: 8px; right: 8px; z-index: 10;
-}
-.avatar-loading {
-  position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
-  color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200);
-  z-index: 10;
-}
-.avatar-canvas-wrap { width: 100%; height: 100%; }
-.avatar-canvas-wrap canvas { width: 100% !important; height: 100% !important; }
-.voice-controls {
-  display: flex; align-items: center; gap: 8px;
+  background: rgba(0,0,0,0.4); border-radius: 10px; padding: 4px 8px;
+  backdrop-filter: blur(8px);
 }
 .voice-toggle, .avatar-toggle {
-  width: 36px; height: 36px; border-radius: 8px;
-  background: var(--colorNeutralBackground4);
-  border: 1px solid var(--colorNeutralStroke1);
+  width: 32px; height: 32px; border-radius: 8px;
+  background: transparent; border: 1px solid rgba(255,255,255,0.15);
   color: var(--colorNeutralForeground1);
-  font-size: 18px; cursor: pointer;
+  font-size: 16px; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   transition: background 0.15s;
 }
-.voice-toggle:hover, .avatar-toggle:hover { background: var(--colorNeutralBackground5); }
+.voice-toggle:hover, .avatar-toggle:hover { background: rgba(255,255,255,0.1); }
 .voice-toggle.muted { opacity: 0.4; }
 .voice-toggle.speaking {
   background: var(--colorBrandBackground);
@@ -447,13 +435,106 @@ h3 { font-size: 14px; font-weight: 600; }
   to { box-shadow: 0 0 0 8px rgba(101,76,245,0); }
 }
 .voice-picker {
-  background: var(--colorNeutralBackground4);
-  color: var(--colorNeutralForeground1);
-  border: 1px solid var(--colorNeutralStroke1);
-  border-radius: 6px; padding: 4px 8px;
-  font-size: var(--fontSizeBase200);
-  font-family: var(--fontFamilyBase);
+  background: rgba(0,0,0,0.3); color: var(--colorNeutralForeground1);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 6px; padding: 2px 6px;
+  font-size: 11px; font-family: var(--fontFamilyBase);
 }
+
+/* Avatar loading indicator */
+.avatar-loading {
+  position: absolute; bottom: 50%; left: 50%; transform: translate(-50%, 50%);
+  color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase300);
+  z-index: 10; text-align: center;
+}
+
+/* Speech bubble — overlaid on bottom of avatar viewport */
+.speech-bubble {
+  position: absolute; bottom: 12px; left: 12px; right: 12px;
+  z-index: 10; max-height: 30%;
+  background: rgba(0,0,0,0.65); backdrop-filter: blur(6px);
+  border-radius: 12px; padding: 10px 16px;
+  color: #fff; font-size: 14px; line-height: 1.5;
+  font-family: var(--fontFamilyBase);
+  opacity: 0; transition: opacity 0.3s ease;
+  pointer-events: none; overflow-y: auto;
+}
+.speech-bubble.visible { opacity: 1; pointer-events: auto; }
+.speech-bubble .speech-word { transition: opacity 0.1s; }
+.speech-bubble .speech-word.current { font-weight: 600; color: var(--colorBrandForeground2); }
+
+/* Avatar state indicator — subtle dot */
+.avatar-state-badge {
+  position: absolute; top: 12px; left: 12px; z-index: 10;
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(0,0,0,0.4); backdrop-filter: blur(8px);
+  border-radius: 20px; padding: 4px 10px;
+  font-size: 11px; color: var(--colorNeutralForeground3);
+}
+.avatar-state-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #5cb85c; /* green = idle */
+}
+.avatar-state-dot.listening { background: #479ef5; }
+.avatar-state-dot.thinking { background: #f0ad4e; animation: thinkPulse 1s ease-in-out infinite; }
+.avatar-state-dot.speaking { background: #654cf5; animation: speakPulse 0.5s ease-in-out infinite alternate; }
+@keyframes thinkPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+@keyframes speakPulse { from { transform: scale(1); } to { transform: scale(1.4); } }
+
+/* Transcript — collapsible panel below avatar (35%) */
+.transcript-panel {
+  flex: 1; min-height: 80px; max-height: 35%;
+  overflow-y: auto; padding: 8px 16px;
+  border-top: 1px solid var(--colorNeutralStroke2);
+  background: var(--colorNeutralBackground1);
+  transition: max-height 0.3s ease;
+}
+.transcript-panel.collapsed { max-height: 0; min-height: 0; padding: 0; overflow: hidden; }
+.transcript-toggle {
+  position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+  z-index: 11; background: var(--colorNeutralBackground3);
+  border: 1px solid var(--colorNeutralStroke1); border-bottom: none;
+  border-radius: 8px 8px 0 0; padding: 2px 12px; cursor: pointer;
+  font-size: 11px; color: var(--colorNeutralForeground3);
+}
+.transcript-toggle:hover { background: var(--colorNeutralBackground4); }
+
+/* Chat input — voice-first */
+.chat-input-area {
+  padding: 8px 12px;
+  border-top: 1px solid var(--colorNeutralStroke2);
+  background: var(--colorNeutralBackground2);
+}
+.chat-input-row {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--colorNeutralBackground3);
+  border: 1px solid var(--colorNeutralStroke1);
+  border-radius: 24px; padding: 4px 4px 4px 14px;
+}
+.chat-input-row:focus-within { border-color: var(--colorBrandForeground1); }
+.chat-input-row input {
+  flex: 1; background: transparent; border: none; outline: none;
+  color: var(--colorNeutralForeground1);
+  font-size: var(--fontSizeBase300); font-family: var(--fontFamilyBase);
+}
+.chat-input-row input::placeholder { color: var(--colorNeutralForeground4); }
+.mic-btn {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: var(--colorBrandBackground); border: none;
+  color: white; font-size: 20px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s;
+}
+.mic-btn:hover { background: var(--colorBrandBackgroundHover); transform: scale(1.05); }
+.mic-btn.recording { background: #dc3545; animation: micPulse 1s ease-in-out infinite; }
+@keyframes micPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(220,53,69,0.4); } 50% { box-shadow: 0 0 0 10px rgba(220,53,69,0); } }
+.send-btn {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--colorNeutralBackground4); border: 1px solid var(--colorNeutralStroke1);
+  color: var(--colorNeutralForeground1); font-size: 16px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.send-btn:hover { background: var(--colorBrandBackground); color: white; }
 
 .chat-messages {
   flex: 1;
@@ -1470,40 +1551,45 @@ h3 { font-size: 14px; font-weight: 600; }
       </div>
     </div>
 
-    <!-- Chat panel -->
+    <!-- Chat panel — Video Call Layout -->
     <div id="panel-chat" class="panel">
       <div class="chat-container">
-        <!-- Avatar + Voice controls -->
+        <!-- Avatar Viewport (65% — THE main interface) -->
         <div class="avatar-voice-bar" id="avatar-voice-bar">
           <div class="avatar-panel" id="avatar-panel">
             <div class="avatar-canvas-wrap" id="avatar-canvas"></div>
           </div>
-          <div class="avatar-loading" id="avatar-loading">Loading avatar...</div>
+          <!-- State badge (top-left) -->
+          <div class="avatar-state-badge" id="avatar-state-badge">
+            <div class="avatar-state-dot" id="avatar-state-dot"></div>
+            <span id="avatar-state-text">Idle</span>
+          </div>
+          <!-- Voice controls (top-right) -->
           <div class="voice-controls">
             <button class="voice-toggle" id="voice-toggle" onclick="toggleVoice()" title="Toggle voice">&#128266;</button>
             <select class="voice-picker" id="voice-picker" onchange="setVoice(this.value)" title="Choose voice">
-              <option value="en-US-EmmaMultilingualNeural">Emma (Neural)</option>
-              <option value="en-US-AvaNeural">Ava (Neural)</option>
-              <option value="en-US-AriaNeural">Aria (Neural)</option>
-              <option value="en-GB-SoniaNeural">Sonia (UK)</option>
-              <option value="en-AU-NatashaNeural">Natasha (AU)</option>
+              <option value="en-US-EmmaMultilingualNeural">Emma</option>
+              <option value="en-US-AvaNeural">Ava</option>
+              <option value="en-US-AriaNeural">Aria</option>
+              <option value="en-GB-SoniaNeural">Sonia</option>
             </select>
             <button class="avatar-toggle" id="avatar-toggle" onclick="toggleAvatar()" title="Toggle avatar">&#129489;</button>
           </div>
+          <!-- Speech bubble overlay (bottom of avatar) -->
+          <div class="speech-bubble" id="speech-bubble"></div>
+          <!-- Loading indicator -->
+          <div class="avatar-loading" id="avatar-loading">Loading Lucy...</div>
         </div>
-        <div class="chat-messages" id="chat-messages"></div>
+        <!-- Transcript (collapsible, 35%) -->
+        <div class="transcript-panel" id="transcript-panel">
+          <div class="chat-messages" id="chat-messages"></div>
+        </div>
+        <!-- Voice-first input bar -->
         <div class="chat-input-area">
-          <div class="council-bar" id="council-bar">
-            <label class="council-toggle">
-              <input type="checkbox" id="council-enabled" onchange="toggleCouncil(this.checked)">
-              <span>&#127963;&#65039; Model Council</span>
-            </label>
-            <div class="council-models" id="council-models" style="display:none">
-            </div>
-          </div>
           <div class="chat-input-row">
-            <input id="chat-input" placeholder="Ask Lucy anything&#8230;" onkeydown="if(event.key==='Enter')sendChat()">
-            <button onclick="sendChat()">Send</button>
+            <input id="chat-input" placeholder="Type or press mic to talk..." onkeydown="if(event.key==='Enter')sendChat()">
+            <button class="mic-btn" id="mic-btn" onclick="toggleMic()" title="Push to talk">&#127908;</button>
+            <button class="send-btn" onclick="sendChat()" title="Send">&#10148;</button>
           </div>
         </div>
       </div>
@@ -2014,6 +2100,7 @@ async function sendChat() {
   const prompt = input.value.trim();
   if (!prompt) return;
   input.value = '';
+  setAvatarState('listening');
 
   if (councilEnabled) {
     const models = getSelectedCouncilModels();
@@ -2082,6 +2169,7 @@ async function sendChat() {
               const modelLabel = model ? ' (' + esc(model) + ')' : '';
               labelEl.innerHTML = '<span class="sparkle">&#10024;</span> ' + esc(data.agent) + modelLabel + ' &rarr; ' + esc(data.intent);
               labelEl.classList.add('active-label');
+              setAvatarState('thinking');
             } else if (evtType === 'phase' && data.phase) {
               const phaseDiv = document.createElement('div');
               phaseDiv.className = 'chat-msg phase-msg';
@@ -3115,15 +3203,45 @@ function sendFollowUp(prompt) {
 }
 </script>
 <script>
-// Voice + Avatar state
+// ── Voice + Avatar System (Video Call UX) ──────────────────
 let voiceEnabled = true;
 let avatarVisible = true;
 let currentVoice = 'en-US-EmmaMultilingualNeural';
 let voiceQueue = [];
 let isVoicePlaying = false;
 let avatarModule = null;
+let voiceBuffer = '';
+let isRecording = false;
+let recognition = null;
 
-// Voice toggle
+// ── Avatar State Management ────────────────────────────────
+function setAvatarState(state) {
+  const dot = document.getElementById('avatar-state-dot');
+  const text = document.getElementById('avatar-state-text');
+  if (dot) { dot.className = 'avatar-state-dot ' + state; }
+  if (text) {
+    const labels = { idle: 'Ready', listening: 'Listening...', thinking: 'Thinking...', speaking: 'Speaking', reacting: 'Reacting' };
+    text.textContent = labels[state] || state;
+  }
+  if (avatarModule) avatarModule.setState(state);
+}
+
+// ── Speech Bubble ──────────────────────────────────────────
+let speechBubbleTimer = null;
+function showSpeechBubble(text) {
+  const bubble = document.getElementById('speech-bubble');
+  if (!bubble) return;
+  bubble.textContent = text;
+  bubble.classList.add('visible');
+  clearTimeout(speechBubbleTimer);
+}
+function hideSpeechBubble() {
+  const bubble = document.getElementById('speech-bubble');
+  if (!bubble) return;
+  speechBubbleTimer = setTimeout(() => { bubble.classList.remove('visible'); }, 3000);
+}
+
+// ── Voice Controls ─────────────────────────────────────────
 function toggleVoice() {
   voiceEnabled = !voiceEnabled;
   const btn = document.getElementById('voice-toggle');
@@ -3131,30 +3249,22 @@ function toggleVoice() {
   btn.classList.remove('speaking');
   btn.innerHTML = voiceEnabled ? '&#128266;' : '&#128264;';
   if (!voiceEnabled) {
-    voiceQueue = [];
-    isVoicePlaying = false;
-    voiceBuffer = '';
-    // Stop any currently playing audio
+    voiceQueue = []; isVoicePlaying = false; voiceBuffer = '';
     document.querySelectorAll('audio').forEach(a => { a.pause(); a.remove(); });
     if (avatarModule) avatarModule.setSpeaking(false);
+    hideSpeechBubble();
   }
 }
-
 function setVoice(voice) { currentVoice = voice; }
-
-// Avatar toggle
 function toggleAvatar() {
   avatarVisible = !avatarVisible;
   document.getElementById('avatar-panel').classList.toggle('hidden', !avatarVisible);
 }
 
-// Sentence buffer for voice
-let voiceBuffer = '';
-
+// ── Sentence Buffer → Voice Queue ──────────────────────────
 function bufferForVoice(text) {
   if (!voiceEnabled) return;
   voiceBuffer += text;
-  // Split on sentence boundaries
   const sentences = voiceBuffer.match(/[^.!?]*[.!?]+/g);
   if (sentences) {
     for (const s of sentences) {
@@ -3165,7 +3275,6 @@ function bufferForVoice(text) {
   }
   if (!isVoicePlaying) playNextSentence();
 }
-
 function flushVoiceBuffer() {
   if (!voiceEnabled) return;
   const remaining = voiceBuffer.trim();
@@ -3174,80 +3283,97 @@ function flushVoiceBuffer() {
   if (!isVoicePlaying) playNextSentence();
 }
 
+// ── Play TTS + Lip-Sync via TalkingHead ────────────────────
 async function playNextSentence() {
   if (voiceQueue.length === 0) {
     isVoicePlaying = false;
     document.getElementById('voice-toggle').classList.remove('speaking');
-    if (avatarModule) avatarModule.setSpeaking(false);
+    setAvatarState('idle');
+    hideSpeechBubble();
     return;
   }
-
   isVoicePlaying = true;
   document.getElementById('voice-toggle').classList.add('speaking');
-  if (avatarModule) avatarModule.setSpeaking(true);
-
+  setAvatarState('speaking');
   const sentence = voiceQueue.shift();
+  showSpeechBubble(sentence);
+
   try {
-    const res = await fetch('/api/tts/stream?text=' + encodeURIComponent(sentence) + '&voice=' + encodeURIComponent(currentVoice));
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buf = '';
-    let audioBase64 = null;
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buf += decoder.decode(value, { stream: true });
-      const lines = buf.split('\n');
-      buf = lines.pop() || '';
-
-      let evtType = '';
-      for (const line of lines) {
-        if (line.startsWith('event: ')) evtType = line.slice(7).trim();
-        if (line.startsWith('data: ')) {
-          try {
-            const d = JSON.parse(line.slice(6));
-            if (evtType === 'word' && avatarModule) {
-              avatarModule.onWordBoundary(d.text);
-            } else if (evtType === 'audio') {
-              audioBase64 = d.audio;
-            }
-          } catch {}
-        }
+    const res = await fetch('/api/tts?text=' + encodeURIComponent(sentence) + '&voice=' + encodeURIComponent(currentVoice));
+    const audioBlob = await res.blob();
+    if (avatarModule && avatarModule.getHead()) {
+      try {
+        const arrayBuf = await audioBlob.arrayBuffer();
+        await avatarModule.getHead().speakAudio(arrayBuf);
+      } catch (e) {
+        console.warn('[voice] TalkingHead speakAudio failed, fallback:', e);
+        await playAudioBlob(audioBlob);
       }
-    }
-
-    // Play the audio
-    if (audioBase64) {
-      const audioBlob = new Blob([Uint8Array.from(atob(audioBase64), c => c.charCodeAt(0))], { type: 'audio/mpeg' });
-      const audioUrl = URL.createObjectURL(audioBlob);
-      const audio = new Audio(audioUrl);
-      await new Promise((resolve) => {
-        audio.onended = resolve;
-        audio.onerror = resolve;
-        audio.play().catch(resolve);
-      });
-      URL.revokeObjectURL(audioUrl);
+    } else {
+      await playAudioBlob(audioBlob);
     }
   } catch (err) {
-    console.warn('[voice] TTS error, trying Web Speech fallback:', err);
-    // Fallback: Web Speech API
+    console.warn('[voice] TTS error, Web Speech fallback:', err);
     if ('speechSynthesis' in window) {
-      const utterance = new SpeechSynthesisUtterance(sentence);
-      utterance.rate = 0.95;
-      utterance.pitch = 1.05;
-      const voices = speechSynthesis.getVoices();
-      const female = voices.find(v => v.name.includes('Zira') || v.name.includes('Eva') || v.name.includes('female'));
-      if (female) utterance.voice = female;
-      await new Promise(resolve => { utterance.onend = resolve; speechSynthesis.speak(utterance); });
+      const u = new SpeechSynthesisUtterance(sentence);
+      u.rate = 0.95; u.pitch = 1.05;
+      await new Promise(r => { u.onend = r; speechSynthesis.speak(u); });
     }
   }
-
-  if (avatarModule) avatarModule.onSilence();
   playNextSentence();
 }
+async function playAudioBlob(blob) {
+  const url = URL.createObjectURL(blob);
+  const audio = new Audio(url);
+  await new Promise(r => { audio.onended = r; audio.onerror = r; audio.play().catch(r); });
+  URL.revokeObjectURL(url);
+}
 
-// Init avatar only when chat panel is visible (container needs real dimensions)
+// ── Microphone Input (Push-to-Talk) ────────────────────────
+function toggleMic() {
+  if (isRecording) { stopMic(); return; }
+  if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+    alert('Speech recognition not supported. Use Chrome or Edge.');
+    return;
+  }
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SpeechRec();
+  recognition.lang = 'en-US';
+  recognition.interimResults = true;
+  recognition.continuous = false;
+  const micBtn = document.getElementById('mic-btn');
+  const input = document.getElementById('chat-input');
+  micBtn.classList.add('recording');
+  isRecording = true;
+  setAvatarState('listening');
+  recognition.onresult = (event) => {
+    let transcript = '';
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      transcript += event.results[i][0].transcript;
+    }
+    input.value = transcript;
+  };
+  recognition.onend = () => {
+    micBtn.classList.remove('recording');
+    isRecording = false;
+    setAvatarState('idle');
+    if (input.value.trim()) sendChat();
+  };
+  recognition.onerror = () => {
+    micBtn.classList.remove('recording');
+    isRecording = false;
+    setAvatarState('idle');
+  };
+  recognition.start();
+}
+function stopMic() {
+  if (recognition) recognition.stop();
+  document.getElementById('mic-btn').classList.remove('recording');
+  isRecording = false;
+  setAvatarState('idle');
+}
+
+// ── Avatar Init (lazy, on chat panel visible) ──────────────
 let avatarInitDone = false;
 async function initAvatarIfNeeded() {
   if (avatarInitDone) return;
@@ -3257,18 +3383,17 @@ async function initAvatarIfNeeded() {
     avatarModule = await import('/avatar.js');
     const container = document.getElementById('avatar-canvas');
     if (!container || container.clientWidth === 0) {
-      // Retry after panel is visible
       setTimeout(initAvatarIfNeeded, 300);
       avatarInitDone = false;
       return;
     }
     await avatarModule.initAvatar(container, (pct) => {
-      if (loadingEl) loadingEl.textContent = 'Loading avatar ' + pct + '%...';
+      if (loadingEl) loadingEl.textContent = 'Loading Lucy ' + pct + '%...';
     });
     if (loadingEl) loadingEl.style.display = 'none';
-    console.log('[voice+avatar] TalkingHead system ready');
+    console.log('[avatar] TalkingHead ready');
   } catch (err) {
-    console.warn('[avatar] Failed to init:', err);
+    console.warn('[avatar] Init failed:', err);
     if (loadingEl) loadingEl.textContent = 'Avatar unavailable';
   }
 }
