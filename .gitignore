@@ -3,8 +3,7 @@ lucy.db
 lucy.db-shm
 lucy.db-wal
 .env
-memory/episodic/
-memory/session/
+memory/
 v1-checkpoint/
 .playwright-mcp/
 *.log
