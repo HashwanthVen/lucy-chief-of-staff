@@ -629,12 +629,12 @@ Write a concise reply (under 100 words) that Hashwanth can copy-paste into ${sig
   } catch {}
 });
 
-// ─── Model Council ──────────────────────────────────────────
+// ─── Strategic Council (persona-based parallel analysis) ────
 app.post("/api/council", async (req, res) => {
-  const { prompt, models } = req.body;
+  const { prompt, personas } = req.body;
 
-  if (!prompt || !models || models.length < 2) {
-    return res.status(400).json({ error: "prompt and at least 2 models required" });
+  if (!prompt || !personas || personas.length < 2) {
+    return res.status(400).json({ error: "prompt and at least 2 personas required" });
   }
 
   res.writeHead(200, {
@@ -651,21 +651,25 @@ app.post("/api/council", async (req, res) => {
 
   const { CopilotClient, approveAll } = await import("@github/copilot-sdk");
   const { buildMemoryContext } = await import("./memory.js");
+  const memoryCtx = buildMemoryContext();
 
-  const systemPrompt = buildMemoryContext() +
-    "You are Lucy, a Chief of Staff AI. Respond in clear, readable prose. Never output raw JSON. Tools can take up to 60 seconds — do NOT retry or say they timed out.";
+  writeSSE("council-start", { personas: personas.map((p: any) => ({ id: p.id, name: p.name, model: p.model })), prompt });
 
-  writeSSE("council-start", { models, prompt });
+  // Run all personas in parallel
+  const results: Record<string, string> = {};
 
-  const promises = models.map(async (modelId: string) => {
+  const promises = personas.map(async (persona: { id: string; name: string; instructions: string; model: string }) => {
+    const systemPrompt = memoryCtx +
+      `You are ${persona.name}. ${persona.instructions}\n\n` +
+      `Analyze the following from your specific perspective. Be concise, use bullet points. ` +
+      `Never output raw JSON. Always provide actionable insights.`;
+
     try {
-      const client = new CopilotClient({
-        cliArgs: ["--allow-all-tools", "--allow-all-paths"],
-      });
+      const client = new CopilotClient({ cliArgs: ["--allow-all-tools", "--allow-all-paths"] });
       await client.start();
 
       const session = await client.createSession({
-        model: modelId,
+        model: persona.model || "gpt-5.4",
         streaming: true,
         onPermissionRequest: approveAll,
         onUserInputRequest: async () => ({ answer: "yes", wasFreeform: true }),
@@ -684,17 +688,18 @@ app.post("/api/council", async (req, res) => {
       let content = "";
       let resolved = false;
 
-      return new Promise<string>((resolve) => {
+      return new Promise<void>((resolve) => {
         const handler = (event: any) => {
           if (resolved) return;
           if (event.type === "assistant.message_delta" && event.data?.deltaContent) {
             content += event.data.deltaContent;
-            writeSSE("council-delta", { model: modelId, text: event.data.deltaContent });
+            writeSSE("council-delta", { persona: persona.id, text: event.data.deltaContent });
           } else if (event.type === "session.idle") {
             resolved = true;
-            writeSSE("council-complete", { model: modelId, content });
+            results[persona.id] = content;
+            writeSSE("council-complete", { persona: persona.id, content });
             client.stop().catch(() => {});
-            resolve(content);
+            resolve();
           }
         };
 
@@ -703,31 +708,111 @@ app.post("/api/council", async (req, res) => {
         setTimeout(() => {
           if (!resolved) {
             resolved = true;
-            writeSSE("council-complete", { model: modelId, content: content || "(timed out)" });
+            results[persona.id] = content || "(timed out)";
+            writeSSE("council-complete", { persona: persona.id, content: content || "(timed out)" });
             client.stop().catch(() => {});
-            resolve(content || "(timed out)");
+            resolve();
           }
         }, 180_000);
 
         session.send({ prompt }).catch((err: Error) => {
           if (!resolved) {
             resolved = true;
-            writeSSE("council-complete", { model: modelId, content: `Error: ${err.message}` });
+            results[persona.id] = `Error: ${err.message}`;
+            writeSSE("council-complete", { persona: persona.id, content: `Error: ${err.message}` });
             client.stop().catch(() => {});
-            resolve(`Error: ${err.message}`);
+            resolve();
           }
         });
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      writeSSE("council-complete", { model: modelId, content: `Failed to start: ${msg}` });
-      return `Failed: ${msg}`;
+      results[persona.id] = `Failed: ${msg}`;
+      writeSSE("council-complete", { persona: persona.id, content: `Failed: ${msg}` });
     }
   });
 
   await Promise.all(promises);
+
+  // Synthesizer: run a final agent that reads all perspectives
+  writeSSE("synthesizer-start", {});
+  try {
+    const synthPrompt = `You are the Strategic Synthesizer for a Manufacturing leadership team.
+
+You just received analysis from ${personas.length} perspectives on this question:
+"${prompt}"
+
+Here are their responses:
+${Object.entries(results).map(([id, content]) => {
+  const p = personas.find((pp: any) => pp.id === id);
+  return `\n--- ${p?.name || id} ---\n${content}`;
+}).join('\n')}
+
+Now produce a concise WHAT-IF EXECUTIVE SUMMARY:
+1. **Consensus** — Where do all perspectives agree?
+2. **Key Tensions** — Where do perspectives conflict? Why?
+3. **Recommended Action** — What should the leadership team do? Include risk/reward.
+4. **Top 3 Discussion Questions** — What should the team debate in their next meeting?
+
+Be direct, use bullet points, no fluff.`;
+
+    const synthClient = new CopilotClient({ cliArgs: ["--allow-all-tools", "--allow-all-paths"] });
+    await synthClient.start();
+    const synthSession = await synthClient.createSession({
+      model: "gpt-5.4",
+      streaming: true,
+      onPermissionRequest: approveAll,
+      onUserInputRequest: async () => ({ answer: "yes", wasFreeform: true }),
+      systemMessage: { content: memoryCtx + "You are a strategic synthesizer. Be concise and actionable." },
+    });
+
+    let synthContent = "";
+    let synthResolved = false;
+
+    await new Promise<void>((resolve) => {
+      synthSession.on((event: any) => {
+        if (synthResolved) return;
+        if (event.type === "assistant.message_delta" && event.data?.deltaContent) {
+          synthContent += event.data.deltaContent;
+          writeSSE("synthesizer-delta", { text: event.data.deltaContent });
+        } else if (event.type === "session.idle") {
+          synthResolved = true;
+          writeSSE("synthesizer-complete", { content: synthContent });
+          synthClient.stop().catch(() => {});
+          resolve();
+        }
+      });
+
+      setTimeout(() => {
+        if (!synthResolved) {
+          synthResolved = true;
+          writeSSE("synthesizer-complete", { content: synthContent || "(timed out)" });
+          synthClient.stop().catch(() => {});
+          resolve();
+        }
+      }, 120_000);
+
+      synthSession.send({ prompt: synthPrompt }).catch(() => {
+        synthResolved = true;
+        writeSSE("synthesizer-complete", { content: "(synthesis failed)" });
+        synthClient.stop().catch(() => {});
+      });
+    });
+  } catch (err) {
+    writeSSE("synthesizer-complete", { content: `Synthesis error: ${err instanceof Error ? err.message : String(err)}` });
+  }
+
   writeSSE("council-done", {});
   res.end();
+
+  insertActivity({
+    id: uuidv4(),
+    type: "council",
+    detail: `Strategic Council: ${personas.length} personas analyzed "${prompt.slice(0, 80)}"`,
+    entityId: null,
+    timestamp: Date.now(),
+  });
+  remember("episodic", `[Council] Query: "${prompt.slice(0, 200)}" — ${personas.length} personas responded`, ["council"]);
 });
 
 app.post("/api/council/vote", (req, res) => {
