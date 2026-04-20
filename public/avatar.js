@@ -8,8 +8,8 @@ let head = null;
 let isInitialized = false;
 let currentState = 'idle'; // idle, thinking, speaking, listening
 
-// Free Ready Player Me avatar URL (no account needed for public models)
-const AVATAR_URL = 'https://models.readyplayer.me/64bfa15f0e72c63d7c3934a6.glb?morphTargets=ARKit,Oculus+Visemes,mouthOpen,mouthSmile,eyesClosed,eyesLookUp,eyesLookDown&textureSizeLimit=1024&textureFormat=png';
+// Free avatar model hosted on jsDelivr CDN (from TalkingHead repo — no local files)
+const AVATAR_URL = 'https://cdn.jsdelivr.net/gh/met4citizen/TalkingHead@1.7/avatars/brunette.glb';
 
 export async function initAvatar(container, onProgress) {
   if (isInitialized) return;
