@@ -673,7 +673,7 @@ app.post("/api/council", async (req, res) => {
         mcpServers: {
           workiq: {
             type: "local",
-            command: "C:\\Program Files\\nodejs\\npx.cmd",
+            command: process.platform === "win32" ? "npx.cmd" : "npx",
             args: ["-y", "@microsoft/workiq", "mcp"],
             tools: ["*"],
             timeout: 120000,

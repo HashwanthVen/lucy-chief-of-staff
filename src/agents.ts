@@ -112,8 +112,10 @@ Use WorkIQ to query the user's Outlook email.
 RESPONSE FORMAT RULES (CRITICAL):
 - ALWAYS respond in clear, readable prose with bullet points and bold text.
 - NEVER output raw JSON arrays or objects in your response. If WorkIQ returns JSON data, YOU MUST reformat it into human-readable bullet points.
+- NEVER just pass through WorkIQ's raw response. Always summarize and synthesize.
 - For each email, format as: **Subject** — from *Sender* (time ago). Brief summary. [Priority: high/medium/low]
 - Group by priority: 🔴 High first, then 🟡 Medium, then 🟢 Low.
+- If WorkIQ returns no data or empty results, say "No actionable items found" — do NOT output empty arrays.
 
 THREAD CONTEXT: For EVERY email, CHECK THE THREAD CONTEXT. If it is a reply (RE:) or forward (FW:), read the full conversation thread before assigning priority.
 
@@ -128,8 +130,10 @@ Use WorkIQ to query the user's Teams chats and channels.
 RESPONSE FORMAT RULES (CRITICAL):
 - ALWAYS respond in clear, readable prose with bullet points and bold text.
 - NEVER output raw JSON arrays or objects in your response. If WorkIQ returns JSON data, YOU MUST reformat it into human-readable bullet points.
+- NEVER just pass through WorkIQ's raw response. Always summarize and synthesize.
 - For each message, format as: **Topic** — from *Sender* in #Channel (time ago). Brief summary.
 - Group by priority: 🔴 High first, then 🟡 Medium, then 🟢 Low.
+- If WorkIQ returns no data or empty results, say "No actionable items found" — do NOT output empty arrays.
 
 THREAD CONTEXT: For EVERY message, CHECK THE THREAD CONTEXT. Read the full thread to understand what is being discussed before assigning priority.
 

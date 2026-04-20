@@ -2505,24 +2505,12 @@ async function saveModelConfig() {
 }
 /* ── Markdown renderer ────────────────────────────────────── */
 function renderMarkdown(md) {
-  // Detect if the entire content is a JSON array and render as cards
-  let trimmed = md.trim();
-  if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
-    try {
-      const arr = JSON.parse(trimmed);
-      if (Array.isArray(arr) && arr.length > 0 && typeof arr[0] === 'object') {
-        return renderJsonAsCards(arr);
-      }
-    } catch {}
-  }
-
   let html = esc(md);
 
-  // JSON fenced code blocks → render as cards if array
+  // JSON fenced code blocks → render as formatted code
   html = html.replace(/```json\n([\s\S]*?)```/g, function(match, json) {
     try {
       const parsed = JSON.parse(json.trim());
-      if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === 'object') return renderJsonAsCards(parsed);
       return '<pre><code>' + esc(JSON.stringify(parsed, null, 2)) + '</code></pre>';
     } catch(e) { return '<pre><code>' + json + '</code></pre>'; }
   });
