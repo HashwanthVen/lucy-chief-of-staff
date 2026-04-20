@@ -3,7 +3,7 @@
 ## For new users — paste this single prompt into Copilot CLI:
 
 ```
-Clone https://github.com/v-sutharapuh_microsoft/lucy-ghcopilotsdk-chief-of-staff, run npm install, then npm start. If Node.js isn't installed, install it first. Accept any WorkIQ EULA prompts.
+Clone https://github.com/v-sutharapuh_microsoft/lucy-ghcopilotsdk-chief-of-staff and set it up end-to-end. Check if Node.js 18+ is installed (if not, install it). Check if GitHub CLI is authenticated (if not, run gh auth login). Then run npm install and npm start. Accept any WorkIQ EULA prompts automatically. Open http://localhost:4242 when ready.
 ```
 
 ## What Copilot will do:
