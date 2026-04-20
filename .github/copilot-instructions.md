@@ -10,11 +10,14 @@ I want to set up Lucy — a Chief of Staff AI dashboard. Here's what I need you 
 3. Check if I'm logged into GitHub CLI. If not, run gh auth login and walk me through it.
 4. Clone this repo: https://github.com/v-sutharapuh_microsoft/lucy-ghcopilotsdk-chief-of-staff
 5. cd into the cloned folder and run npm install.
-6. Run npm start to launch the server.
-7. Wait for the server to print "Lucy ready" in the console (this takes ~60 seconds as 4 AI agents initialize).
-8. Once ready, open http://localhost:4242 in my browser.
-9. If there are any EULA or permission prompts, accept them automatically.
-10. Tell me when everything is running and what I'm looking at.
+6. Personalize Lucy for me:
+   a. Look up my GitHub profile to get my display name and email (use gh api user).
+   b. Update src/user-context.ts with my real name, email, and set team/domain/projects to empty arrays for now.
+7. Run npm start to launch the server.
+8. Wait for the server to print "Lucy ready" in the console (this takes ~60 seconds as 4 AI agents initialize).
+9. Once ready, open http://localhost:4242 in my browser.
+10. If there are any EULA or permission prompts, accept them automatically.
+11. Tell me when everything is running, what I'm looking at, and how to use it. Mention they can customize Lucy's personality anytime via the Soul tab in the dashboard, and teach her preferences via the "Teach Lucy" input.
 
 Important: Do NOT ask me to do anything manually. Handle every step yourself. If something fails, troubleshoot and fix it before moving on.
 ```
